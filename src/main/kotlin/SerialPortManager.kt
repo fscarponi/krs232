@@ -1,11 +1,18 @@
-import jssc.*
+import jssc.SerialPort
+import jssc.SerialPortList
+import jssc.SerialPortTimeoutException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.datetime.Clock
 import org.apache.log4j.BasicConfigurator
 import java.lang.Thread.sleep
 
-class SerialPortManager {
-    init {
-        val ports = SerialPortList.getPortNames().onEach {
-            ports.add(SerialPort(it).apply {
+
+object SerialPortManager {
+
+    val protocolEndMessageSymbols = listOf('\n', '\r')
+    val ports = mutableListOf<SerialPort>().apply {
+        SerialPortList.getPortNames().onEach {
+            this.add(SerialPort(it).apply {
                 if (!this.isOpened) openPort()
                 setParams(
                     SerialPortParams.BAUD_RATE,
@@ -16,10 +23,9 @@ class SerialPortManager {
                 flowControlMode = SerialPortParams.FLOW_CONTROL
             })
         }
-        require(ports.isNotEmpty())
     }
 
-    val ports = mutableListOf<SerialPort>()
+
 }
 
 object SerialPortParams {
@@ -31,12 +37,29 @@ object SerialPortParams {
 }
 
 
-fun main() {
-    BasicConfigurator.configure();
-    val portManager = SerialPortManager()
-    val port = portManager.ports.first()
-    port.writeString("ciao mario")
-    println(port.readString())
-
+suspend fun main(): Unit = coroutineScope {
+    BasicConfigurator.configure()
+    val port = SerialPortManager.ports.first()
+    repeat(10_000) {
+        println(port.sendCommand("messaggio $it\n"))
+    }
 
 }
+
+suspend fun SerialPort.sendCommand(text: String, responseTimeOut: Int = 3000): String {
+    this.writeString(text)
+    val timeOutInstant = Clock.System.now().toEpochMilliseconds() + responseTimeOut
+    val sb = StringBuilder("")
+    while (SerialPortManager.protocolEndMessageSymbols.find {
+            sb.endsWith(it)
+        } == null || Clock.System.now().toEpochMilliseconds() > timeOutInstant) {
+        sleep(50)
+        sb.append(readString())
+    }
+    if (Clock.System.now().toEpochMilliseconds() > timeOutInstant) throw SerialPortTimeoutException(
+        this.portName, "sendCommand", responseTimeOut
+    )
+    return sb.toString()
+}
+
+
