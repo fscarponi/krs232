@@ -9,6 +9,7 @@ import java.lang.Thread.sleep
 
 object SerialPortManager {
 
+
     val protocolEndMessageSymbols = listOf('\n', '\r')
     val ports = mutableListOf<SerialPort>().apply {
         SerialPortList.getPortNames().onEach {
