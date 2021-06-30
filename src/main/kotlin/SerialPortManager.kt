@@ -1,4 +1,5 @@
 import jssc.SerialPort
+import jssc.SerialPortException
 import jssc.SerialPortList
 import jssc.SerialPortTimeoutException
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -8,6 +9,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.apache.log4j.BasicConfigurator
 import java.lang.Thread.sleep
+import kotlin.random.Random
 
 
 object SerialPortManager {
@@ -31,7 +33,7 @@ object SerialPortManager {
 
     @Synchronized
     fun sendCommand(serialPort: SerialPort, text: String, responseTimeOut: Int = 3000): String = runBlocking {
-        sleep(250)
+        sleep(100)
         serialPort.writeString(text)
         serialPort.purgePort(SerialPort.PURGE_RXCLEAR)
         serialPort.purgePort(SerialPort.PURGE_TXCLEAR)
@@ -68,9 +70,17 @@ suspend fun main(): Unit = coroutineScope {
     val port = SerialPortManager.portsMap[SerialPortManager.portsMap.keys.first()]!!
     launch {
         println("sono il processo 1")
-        repeat(10_000) {
+        repeat(250) {
             try {
-                println(port.sendCommand("PROCESSO 1 messaggio fweawaefewafefwawefaaefwaefwaefwfaew $it\n"))
+                val response = port.sendCommand("PROCESSO 1 messaggio fweawaefewafefwawefaaefwaefwaefwfaew $it\n")
+                if (response == "PROCESSO 1 messaggio fweawaefewafefwawefaaefwaefwaefwfaew $it\n") {
+                    println("process 1-> test $it ->result: TRUE")
+                } else throw SerialPortException(
+                    port.portName,
+                    "test main concurrent",
+                    "message received is not equals to sent"
+                )
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -78,9 +88,19 @@ suspend fun main(): Unit = coroutineScope {
     }
     launch {
         println("sono il processo 2")
-        repeat(10_000) {
+        repeat(250) {
+            sleep(Random.nextLong(1000))
             try {
-                println(port.sendCommand("PROCESSO 2 messaggio fefew $it\n"))
+                val response =
+                    port.sendCommand("PROCESSO 2 messaggio 1234567890fweawaefewafefwawefaaefwaefwaefwfaew $it\n")
+                if (response == "PROCESSO 2 messaggio 1234567890fweawaefewafefwawefaaefwaefwaefwfaew $it\n") {
+                    println("process 2-> test $it ->result: TRUE")
+                } else throw SerialPortException(
+                    port.portName,
+                    "test main concurrent",
+                    "message received is not equals to sent"
+                )
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
