@@ -14,7 +14,6 @@ import kotlin.random.Random
 
 object SerialPortManager {
 
-
     val protocolEndMessageSymbols = listOf('\n')
     val portsMap = mutableMapOf<String, SerialPort>().apply {
         SerialPortList.getPortNames().onEach {
@@ -109,7 +108,7 @@ suspend fun main(): Unit = coroutineScope {
 
 }
 
-suspend fun SerialPort.sendCommand(text: String, responseTimeOut: Int = 3000): String {
+fun SerialPort.sendCommand(text: String, responseTimeOut: Int = 3000): String {
     return SerialPortManager.sendCommand(SerialPortManager.portsMap[this.portName]!!, text, responseTimeOut)
 }
 
